@@ -1,0 +1,33 @@
+{
+    "name": "sotersfolio/rexpay-connect",
+    "description": "PHP SDK and merchant connector for RexPay (Global Accelerex). Handles payments, verification, onboarding, webhooks, and health monitoring.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "SotersFolio",
+            "email": "ogarsaviour@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "SotersFolio\\RexPay\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=7.4 || ^8.0"
+    },
+    "require-dev": {
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "SotersFolio\\RexPay\\Providers\\RexPayServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "php tests/run_tests.php"
+    }
+}
