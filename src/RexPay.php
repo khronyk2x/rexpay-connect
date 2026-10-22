@@ -2,10 +2,13 @@
 
 namespace SotersFolio\RexPay;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use SotersFolio\RexPay\Api\Payment;
 use SotersFolio\RexPay\Api\Transaction;
 use SotersFolio\RexPay\Api\PublicKey;
 use SotersFolio\RexPay\Api\Webhook;
+use SotersFolio\RexPay\Exceptions\RexPayRequestException;
 
 class RexPay
 {
@@ -14,6 +17,7 @@ class RexPay
     protected string $authToken;
     protected string $mode;
     protected array $endpoints;
+    protected ?LoggerInterface $logger;
 
     public Payment $payment;
     public Transaction $transaction;
@@ -22,12 +26,18 @@ class RexPay
 
     const VERSION = '3.0.0';
 
-    public function __construct(string $username, string $secretKey, string $mode = 'test', ?array $customEndpoints = null)
-    {
+    public function __construct(
+        string $username,
+        string $secretKey,
+        string $mode = 'test',
+        ?array $customEndpoints = null,
+        ?LoggerInterface $logger = null
+    ) {
         $this->username = $username;
         $this->secretKey = $secretKey;
         $this->authToken = base64_encode("{$username}:{$secretKey}");
         $this->mode = $mode;
+        $this->logger = $logger ?? (class_exists(NullLogger::class) ? new NullLogger() : null);
 
         $config = require __DIR__ . '/../config/rexpay.php';
         $envKey = ($this->mode === 'production') ? 'production' : 'sandbox';
@@ -59,6 +69,11 @@ class RexPay
         return $this->endpoints;
     }
 
+    public function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
+    }
+
     /**
      * Check if an API response indicates success (responseCode '00').
      */
@@ -87,8 +102,10 @@ class RexPay
 
     /**
      * Low-level HTTP request used by all API classes.
+     *
+     * @throws RexPayRequestException
      */
-    public function request(string $method, string $url, array $data = []): array
+    public function request(string $method, string $url, array $data = [], bool $throwOnError = false): array
     {
         $ch = curl_init($url);
         $headers = [
@@ -112,16 +129,33 @@ class RexPay
         curl_close($ch);
 
         if ($response === false) {
+            $errMsg = $curlError ?: 'Connection failed';
+            if ($this->logger) {
+                $this->logger->error("RexPay cURL error: {$errMsg} on {$url}");
+            }
+            if ($throwOnError) {
+                throw new RexPayRequestException($errMsg, $httpCode);
+            }
             return [
                 'success'  => false,
                 'httpCode' => $httpCode,
-                'error'    => $curlError ?: 'Connection failed'
+                'error'    => $errMsg
             ];
         }
 
         $decoded = json_decode($response, true);
+        $isOk = ($httpCode >= 200 && $httpCode < 300);
+
+        if (!$isOk && $this->logger) {
+            $this->logger->warning("RexPay HTTP {$httpCode} on {$url}", ['body' => $decoded]);
+        }
+
+        if (!$isOk && $throwOnError) {
+            throw new RexPayRequestException("RexPay HTTP request failed with code {$httpCode}", $httpCode, $decoded ?: []);
+        }
+
         return [
-            'success'  => ($httpCode >= 200 && $httpCode < 300),
+            'success'  => $isOk,
             'httpCode' => $httpCode,
             'data'     => $decoded ?: ['raw' => $response]
         ];
