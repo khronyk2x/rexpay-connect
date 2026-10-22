@@ -14,11 +14,20 @@
             "SotersFolio\\RexPay\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "SotersFolio\\RexPay\\Tests\\": "tests/"
+        }
+    },
     "require": {
-        "php": ">=7.4 || ^8.0"
+        "php": ">=8.1",
+        "psr/log": "^1.1 || ^2.0 || ^3.0"
     },
     "require-dev": {
-        "guzzlehttp/guzzle": "^7.0"
+        "guzzlehttp/guzzle": "^7.0",
+        "phpunit/phpunit": "^10.0 || ^11.0",
+        "friendsofphp/php-cs-fixer": "^3.50",
+        "phpstan/phpstan": "^1.11"
     },
     "extra": {
         "laravel": {
@@ -28,6 +37,9 @@
         }
     },
     "scripts": {
-        "test": "php tests/run_tests.php"
+        "test": "vendor/bin/phpunit",
+        "test:suite": "php tests/run_tests.php",
+        "lint": "php-cs-fixer fix --dry-run --diff",
+        "analyze": "phpstan analyse src --level=5"
     }
 }
